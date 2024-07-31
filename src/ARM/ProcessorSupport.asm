@@ -25,42 +25,45 @@ ArmDeInitialize
     ; Clean, invalidate, and disable data-cache
     dsb
     mrc     p15, 1, r6, c0, c0, 1           ; Read CLIDR
-    ubfx    r3, r6, #23, #3                 ; Extract Level of Coherency (LoC)
+    ands    r3, r6, #0x07000000             ; Mask out all but Level of Coherency (LoC)
+    mov     r3, r3, lsr #23                 ; Cache level value (naturally aligned)
     beq     Finished
     mov     r10, #0
 
 Loop1
-    add     r2, r10, r10, lsr #1            ; Calculate 3x cache level
-    lsr     r12, r6, r2                     ; Get cache type for this level
-    ands    r12, r12, #7                    ; Isolate the cache type
+    add     r2, r10, r10, lsr #1            ; Work out 3x cache level
+    mov     r12, r6, lsr r2                 ; Get cache type for this level
+    and     r12, r12, #7                    ; Isolate the cache type
+    cmp     r12, #2
     blt     Skip                            ; No cache or only instruction cache at this level
-
-    mcr     p15, 2, r10, c0, c0, 0          ; Write CSSELR to select cache level
+    mcr     p15, 2, r10, c0, c0, 0          ; Write CSSELR
     isb                                     ; Synchronize
     mrc     p15, 1, r12, c0, c0, 0          ; Read CCSIDR
-    ubfx    r2, r12, #0, #3                 ; Extract line length
-    add     r2, r2, #4                      ; Adjust for log2(16 bytes)
-    ubfx    r4, r12, #3, #10                ; Get the number of ways
-    clz     r5, r4                          ; Get position of the highest way bit
-    ubfx    r7, r12, #13, #15               ; Get the number of sets
+    and     r2, r12, #7                     ; Extract line length field
+    add     r2, r2, #4                      ; Add 4 for line length offset (log2 16 bytes)
+    ldr     r4, =0x3FF
+    ands    r4, r4, r12, lsr #3             ; R4 is the max way number (right aligned)
+    clz     r5, r4                          ; R5 is the bit position of the way size increment
+    ldr     r7, =0x00007FFF
+    ands    r7, r7, r12, lsr #13            ; R7 is the max number of the index size (right aligned)
 
 Loop2
-    mov     r9, r4                          ; Initialize way counter
+    mov     r9, r4                          ; R9 working copy of the max way size (right aligned)
 
 Loop3
     orr     r0, r10, r9, lsl r5             ; Calculate set/way address
-    orr     r0, r0, r7, lsl r2              ; Factor in the index
+    orr     r0, r0, r7, lsl r2              ; Factor in the index number
 
     ; Clean and Invalidate Data Cache Entry by Set/Way
     mcr     p15, 0, r0, c7, c14, 2
 
-    subs    r9, r9, #1                      ; Decrement way counter
+    subs    r9, r9, #1                      ; Decrement the way number
     bge     Loop3
-    subs    r7, r7, #1                      ; Decrement set counter
+    subs    r7, r7, #1                      ; Decrement the index
     bge     Loop2
 
 Skip
-    add     r10, r10, #2                    ; Increment cache level
+    add     r10, r10, #2                    ; Increment the cache level
     cmp     r3, r10
     bgt     Loop1
 
@@ -95,7 +98,7 @@ ArmCleanInvalidateCacheRange
     ; Clean and Invalidate Cache Range
     dsb
     add     r2, r0, r1                      ; Calculate the end address
-    bic     r0, r0, #(CACHE_LINE-1)         ; Align start with cache line
+    bic     r0, r0, #(CACHE_LINE - 1)       ; Align start with cache line
 ArmCleanInvalidateCacheRange0
     mcr     p15, 0, r0, c7, c14, 1          ; Clean & invalidate cache to PoC by MVA
     add     r0, r0, #CACHE_LINE
