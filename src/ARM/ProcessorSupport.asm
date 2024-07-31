@@ -11,7 +11,7 @@ CTRL_I_BIT      EQU     1 << 12
 
         ; Define combined control register bits
 CTRL_COMBINED
-        EQU     CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
+        EQU     (CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT)
 
         ; Define cache line size
 CACHE_LINE      EQU     64
