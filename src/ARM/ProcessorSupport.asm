@@ -5,10 +5,10 @@
         EXPORT ArmReadCntFrq
 
         ; Control Register Bits
-CTRL_M_BIT      EQU     (1 << 0)
-CTRL_C_BIT      EQU     (1 << 2)
-CTRL_I_BIT      EQU     (1 << 12)
-CTRL_COMBINED   EQU     (CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT)
+CTRL_M_BIT      EQU     1 << 0
+CTRL_C_BIT      EQU     1 << 2
+CTRL_I_BIT      EQU     1 << 12
+CTRL_COMBINED   EQU     CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
 CACHE_LINE      EQU     64
 
 ArmDeInitialize
