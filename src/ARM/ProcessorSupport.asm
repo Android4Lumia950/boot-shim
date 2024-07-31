@@ -4,8 +4,11 @@ CTRL_B_BIT      EQU     (1 << 7)
 CTRL_I_BIT      EQU     (1 << 12)
 CACHE_LINE		EQU		64
 
-; Precomputed combined value for CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
-CTRL_COMBINED   EQU     (CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT)
+; Manually compute the combined value:
+; CTRL_COMBINED = CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
+; CTRL_COMBINED = (1 << 2) | (1 << 12) | (1 << 0) = 0x1005
+
+CTRL_COMBINED   EQU     0x1005
 
 	AREA s_ArmDeInitialize, CODE, READONLY, ARM
 	EXPORT ArmDeInitialize
