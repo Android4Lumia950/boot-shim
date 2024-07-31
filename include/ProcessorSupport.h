@@ -1,16 +1,10 @@
 #pragma once
-#ifndef _ARM_PROC_SUPPORT_H_
-#define _ARM_PROC_SUPPORT_H_
 
+// Define CACHE_LINE size for cache line alignment
 #define CACHE_LINE 64
 
-UINTN
-EFIAPI
-ArmReadCntFrq(
-	VOID
-);
+// Function declarations for ARM processor support
+UINTN EFIAPI ArmReadCntFrq(VOID);
 
-extern void ArmDeInitialize(void);
-extern void ArmCleanInvalidateCacheRange(addr_t start, size_t len);
-
-#endif
+VOID EFIAPI ArmDeInitialize(VOID);
+VOID EFIAPI ArmCleanInvalidateCacheRange(addr_t start, size_t len);
