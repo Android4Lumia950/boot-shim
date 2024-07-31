@@ -3,43 +3,36 @@
 
 #include "application.h"
 
-// Boot Manager Application Entrypoint
-// Bootstraps environment and transfer control to EFI Application entry point.
+// Boot Manager Application Entry Point
+// Initializes environment and transfers control to the EFI application entry point.
 NTSTATUS BlApplicationEntry(
-	_In_ PBOOT_APPLICATION_PARAMETER_BLOCK BootAppParameters,
-	_In_ PBL_LIBRARY_PARAMETERS LibraryParameters
+    _In_ PBOOT_APPLICATION_PARAMETER_BLOCK BootAppParameters,
+    _In_ PBL_LIBRARY_PARAMETERS LibraryParameters
 )
 {
+    // Check for null BootAppParameters
+    if (!BootAppParameters)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
 
-	// Get excited now
-	PBL_LIBRARY_PARAMETERS	LibraryParams;
-	PBL_FIRMWARE_DESCRIPTOR FirmwareDescriptor;
-	uint32_t ParamPointer;
+    // Initialize local variables
+    PBL_FIRMWARE_DESCRIPTOR FirmwareDescriptor;
+    UINTN ParamPointer = (UINTN)BootAppParameters;
+    FirmwareDescriptor = (PBL_FIRMWARE_DESCRIPTOR)(ParamPointer + BootAppParameters->FirmwareParametersOffset);
 
-	if (!BootAppParameters)
-	{
-		// Invalid parameter
-		return STATUS_INVALID_PARAMETER;
-	}
+    // Switch to real mode context
+    SwitchToRealModeContext(FirmwareDescriptor);
 
-	LibraryParams = LibraryParameters;
-	ParamPointer = (uint32_t) BootAppParameters;
-	FirmwareDescriptor = (PBL_FIRMWARE_DESCRIPTOR) (ParamPointer + BootAppParameters->FirmwareParametersOffset);
+    // Call EFI main if SystemTable is present
+    if (FirmwareDescriptor->SystemTable)
+    {
+        efi_main(
+            FirmwareDescriptor->ImageHandle, 
+            FirmwareDescriptor->SystemTable
+        );
+    }
 
-	// Switch mode
-	SwitchToRealModeContext(FirmwareDescriptor);
-
-	// Do what ever you want now
-	if (FirmwareDescriptor->SystemTable)
-	{
-		efi_main(
-			FirmwareDescriptor->ImageHandle, 
-			FirmwareDescriptor->SystemTable
-		);
-	}
-
-	// We are done
-	return STATUS_SUCCESS;
-
+    // Return success
+    return STATUS_SUCCESS;
 }
-
