@@ -2,117 +2,115 @@ CTRL_M_BIT      EQU     (1 << 0)
 CTRL_C_BIT      EQU     (1 << 2)
 CTRL_B_BIT      EQU     (1 << 7)
 CTRL_I_BIT      EQU     (1 << 12)
-CACHE_LINE		EQU		64
+CACHE_LINE      EQU     64
 
-; Manually compute the combined value:
-; CTRL_COMBINED = CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
-; CTRL_COMBINED = (1 << 2) | (1 << 12) | (1 << 0) = 0x1005
-
-CTRL_COMBINED   EQU     0x1005
-
-	AREA s_ArmDeInitialize, CODE, READONLY, ARM
-	EXPORT ArmDeInitialize
-	EXPORT ArmCleanInvalidateCacheRange
-	EXPORT ArmCallSmcHardCoded
-	EXPORT ArmReadCntFrq
+    AREA s_ArmDeInitialize, CODE, READONLY, ARM
+    EXPORT ArmDeInitialize
+    EXPORT ArmCleanInvalidateCacheRange
+    EXPORT ArmCallSmcHardCoded
+    EXPORT ArmReadCntFrq
 
 ArmDeInitialize
-	; Disable Branch Prediction
-	mrc     p15, 0, r0, c1, c0, 0
-	bic     r0, r0, #0x00000800
-	mcr     p15, 0, r0, c1, c0, 0
-	dsb
-	isb
+    ; Disable Branch Prediction
+    mrc     p15, 0, r0, c1, c0, 0
+    bic     r0, r0, #0x00000800
+    mcr     p15, 0, r0, c1, c0, 0
+    dsb
+    isb
 
-	; Enter critical section: disable interrupt
-	cpsid   if
-	isb
+    ; Enter critical section: disable interrupt
+    cpsid   if
+    isb
 
-	; Clean, invalidate and disable data-cache
-	dsb
-	mrc		p15, 1, R6, c0, c0, 1			; Read CLIDR
-	ands	R3, R6, #&7000000				; Mask out all but Level of Coherency (LoC)
-	mov		R3, R3, LSR #23					; Cache level value (naturally aligned)
-	beq		Finished
-	mov		R10, #0
+    ; Clean, invalidate, and disable data-cache
+    dsb
+    mrc     p15, 1, r6, c0, c0, 1          ; Read CLIDR
+    ands    r3, r6, #&7000000              ; Mask out all but Level of Coherency (LoC)
+    mov     r3, r3, LSR #23                ; Cache level value (naturally aligned)
+    beq     Finished
+    mov     r10, #0
 
 Loop1
-	add		R2, R10, R10, LSR #1			; Work out 3xcachelevel
-	mov		R12, R6, LSR R2					; bottom 3 bits are the Cache type for this level
-	and		R12, R12, #7					; get those 3 bits alone
-	cmp		R12, #2
-	blt		Skip							; no cache or only instruction cache at this level
-	mcr		p15, 2, R10, c0, c0, 0			; write the Cache Size selection register (CSSELR) ; OR in 1 for Instruction
-	isb										; isb to sync the change to the CacheSizeID reg
-	mrc		p15, 1, R12, c0, c0, 0			; reads current Cache Size ID register (CCSIDR)
-	and		R2, R12, #&7					; extract the line length field
-	add		R2, R2, #4						; add 4 for the line length offset (log2 16 bytes)
-	ldr		R4, =0x3FF
-	ands	R4, R4, R12, LSR #3				; R4 is the max number on the way size (right aligned)
-	clz		R5, R4							; R5 is the bit position of the way size increment
-	ldr		R7, =0x00007FFF
-	ands	R7, R7, R12, LSR #13			; R7 is the max number of the index size (right aligned)
+    add     r2, r10, r10, LSR #1           ; Work out 3xcachelevel
+    mov     r12, r6, LSR r2                ; bottom 3 bits are the Cache type for this level
+    and     r12, r12, #7                   ; get those 3 bits alone
+    cmp     r12, #2
+    blt     Skip                           ; no cache or only instruction cache at this level
+    mcr     p15, 2, r10, c0, c0, 0         ; write the Cache Size selection register (CSSELR)
+    isb                                     ; isb to sync the change to the CacheSizeID reg
+    mrc     p15, 1, r12, c0, c0, 0         ; reads current Cache Size ID register (CCSIDR)
+    and     r2, r12, #&7                   ; extract the line length field
+    add     r2, r2, #4                     ; add 4 for the line length offset (log2 16 bytes)
+    ldr     r4, =0x3FF
+    ands    r4, r4, r12, LSR #3            ; r4 is the max number on the way size (right aligned)
+    clz     r5, r4                         ; r5 is the bit position of the way size increment
+    ldr     r7, =0x00007FFF
+    ands    r7, r7, r12, LSR #13           ; r7 is the max number of the index size (right aligned)
 
 Loop2
-	mov		R9, R4							; R9 working copy of the max way size (right aligned)
+    mov     r9, r4                         ; r9 working copy of the max way size (right aligned)
 
 Loop3
-	orr		R0, R10, R9, LSL R5				; factor in the way number and cache number into R11
-	orr		R0, R0, R7, LSL R2				; factor in the index number
+    orr     r0, r10, r9, LSL r5            ; factor in the way number and cache number into r11
+    orr     r0, r0, r7, LSL r2             ; factor in the index number
 
-	; ArmCleanInvalidateDataCacheEntryBySetWay
-	mcr     p15, 0, r0, c7, c14, 2			; Clean and Invalidate this line
+    ; ArmCleanInvalidateDataCacheEntryBySetWay
+    mcr     p15, 0, r0, c7, c14, 2         ; Clean and Invalidate this line
 
-	subs	R9, R9, #1						; decrement the way number
-	bge		Loop3
-	subs	R7, R7, #1						; decrement the index
-	bge		Loop2
+    subs    r9, r9, #1                     ; decrement the way number
+    bge     Loop3
+    subs    r7, r7, #1                     ; decrement the index
+    bge     Loop2
 
 Skip
-	add		R10, R10, #2					; increment the cache number
-	cmp		R3, R10
-	bgt		Loop1
+    add     r10, r10, #2                   ; increment the cache number
+    cmp     r3, r10
+    bgt     Loop1
 
 Finished
-	dsb
+    dsb
 
-	; Invalidate I-Cache
-	mcr     p15, 0, R0, c7, c5, 0			; Invalidate entire instruction cache
-	dsb
-	isb
+    ; Invalidate I-Cache
+    mcr     p15, 0, r0, c7, c5, 0          ; Invalidate entire instruction cache
+    dsb
+    isb
 
-	; Turn off MMU, I-Cache, D-Cache
-	mrc		p15, 0, r0, c1, c0, 0           ; Get control register
-	bic		r0, r0, #CTRL_COMBINED          ; Disable D Cache, I Cache, and MMU in one go
-	mcr		p15, 0, r0, c1, c0, 0           ; Write control register
-	dsb
-	isb
+    ; Turn off MMU, I-Cache, D-Cache
+    mov     r1, #0x0005                    ; Load lower part
+    bic     r0, r0, r1                     ; Clear lower bits
 
-	; Flush TLB
-	mov     r0, #0
-	mcr     p15, 0, r0, c8, c7, 0
-	mcr     p15, 0, R9, c7, c5, 6			; BPIALL Invalidate Branch predictor array. R9 == NoOp
-	dsb
-	isb
+    mov     r1, #0x1000                    ; Load upper part
+    bic     r0, r0, r1                     ; Clear upper bits
 
-	; Return
-	bx		lr
+    mcr     p15, 0, r0, c1, c0, 0          ; Write control register
+    dsb
+    isb
+
+    ; Flush TLB
+    mov     r0, #0
+    mcr     p15, 0, r0, c8, c7, 0
+    mcr     p15, 0, r9, c7, c5, 6          ; BPIALL Invalidate Branch predictor array. R9 == NoOp
+    dsb
+    isb
+
+    ; Return
+    bx      lr
 
 ArmCleanInvalidateCacheRange
-	; cache-ops.S @ lk
-	dsb
-	add 	r2, r0, r1						; Calculate the end address
-	bic 	r0, #(CACHE_LINE-1)				; Align start with cache line
+    ; cache-ops.S @ lk
+    dsb
+    add     r2, r0, r1                     ; Calculate the end address
+    bic     r0, #(CACHE_LINE-1)            ; Align start with cache line
 ArmCleanInvalidateCacheRange0
-	mcr		p15, 0, r0, c7, c14, 1			; Clean & invalidate cache to PoC by MVA
-	add		r0, r0, #CACHE_LINE
-	cmp 	r0, r2
-	blo		ArmCleanInvalidateCacheRange0
+    mcr     p15, 0, r0, c7, c14, 1         ; Clean & invalidate cache to PoC by MVA
+    add     r0, r0, #CACHE_LINE
+    cmp     r0, r2
+    blo     ArmCleanInvalidateCacheRange0
 
-	mov		r0, #0
-	dsb
+    mov     r0, #0
+    dsb
 
-	bx		lr
+    bx      lr
 
 ArmCallSmcHardCoded
     ; Load the SMC arguments values into the appropriate registers
@@ -130,7 +128,7 @@ ArmCallSmcHardCoded
     bx      lr
 
 ArmReadCntFrq
-	mrc    p15, 0, r0, c14, c0, 0    ; Read CNTFRQ
-	bx     lr
+    mrc     p15, 0, r0, c14, c0, 0    ; Read CNTFRQ
+    bx      lr
 
-	END
+    END
