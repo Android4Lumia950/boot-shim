@@ -211,51 +211,11 @@ typedef enum _BL_MEMORY_DESCRIPTOR_TYPE
 } BL_MEMORY_DESCRIPTOR_TYPE;
 
 // Translation Types
-typedef enum _BL_TRANSLATION_TYPE
+typedef enum _BL_MEMORY_TRANSLATION_TYPE
 {
-    BlNone,
-    BlVirtual,
-    BlPae,
-    BlMax
-} BL_TRANSLATION_TYPE;
-
-// Architecture Modes
-typedef enum _BL_ARCH_MODE
-{
-    BlProtectedMode,
-    BlRealMode
-} BL_ARCH_MODE;
-
-// Boot Device Types
-typedef enum _BL_DEVICE_TYPE
-{
-    DiskDevice = 0,
-    LegacyPartitionDevice = 2,
-    SerialDevice = 3,
-    UdpDevice = 4,
-    BootDevice = 5,
-    PartitionDevice = 6,
-    LocateDevice = 8,
-} BL_DEVICE_TYPE;
-
-// Local Device Types
-typedef enum _BL_LOCAL_DEVICE_TYPE
-{
-    LocalDevice = 0,
-    FloppyDevice = 1,
-    CdRomDevice = 2,
-    RamDiskDevice = 3,
-    FileDevice = 5,
-    VirtualDiskDevice = 6
-} BL_LOCAL_DEVICE_TYPE;
-
-// Partition Types
-typedef enum _BL_PARTITION_TYPE
-{
-    GptPartition,
-    MbrPartition,
-    RawPartition,
-} BL_PARTITION_TYPE;
+    BlMemoryTranslationTypePhysical = BOOT_MEMORY_TRANSLATION_TYPE_PHYSICAL,
+    BlMemoryTranslationTypeVirtual = BOOT_MEMORY_TRANSLATION_TYPE_VIRTUAL
+} BL_MEMORY_TRANSLATION_TYPE;
 
 // File Path Types
 typedef enum _BL_FILE_PATH_TYPE
@@ -315,15 +275,6 @@ typedef struct _BL_CONTEXT
     EFI_BOOT_SERVICES     *BootServices;
     EFI_RUNTIME_SERVICES  *RuntimeServices;
 } BL_CONTEXT, *PBL_CONTEXT;
-
-// Firmware Descriptor
-typedef struct _BL_FIRMWARE_DESCRIPTOR
-{
-    EFI_GUID  Guid;
-    UINT32    Version;
-    UINT32    Size;
-    VOID      *FirmwareData;
-} BL_FIRMWARE_DESCRIPTOR, *PBL_FIRMWARE_DESCRIPTOR;
 
 // File Handle
 typedef struct _BL_FILE_HANDLE
