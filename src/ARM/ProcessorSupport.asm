@@ -4,11 +4,16 @@
         EXPORT ArmCallSmcHardCoded
         EXPORT ArmReadCntFrq
 
-        ; Control Register Bits
+        ; Define control register bit masks
 CTRL_M_BIT      EQU     1 << 0
 CTRL_C_BIT      EQU     1 << 2
 CTRL_I_BIT      EQU     1 << 12
-CTRL_COMBINED   EQU     CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
+
+        ; Define combined control register bits
+CTRL_COMBINED
+        EQU     CTRL_C_BIT | CTRL_I_BIT | CTRL_M_BIT
+
+        ; Define cache line size
 CACHE_LINE      EQU     64
 
 ArmDeInitialize
