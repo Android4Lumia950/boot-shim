@@ -8,16 +8,23 @@ VOID JumpToAddress(
     UINTN PayloadLength
 ) {
     EFI_STATUS Status;
-    UINTN MemMapSize = 0;
-    EFI_MEMORY_DESCRIPTOR* MemMap = NULL;
+    static EFI_MEMORY_DESCRIPTOR* MemMap = NULL;
+    static UINTN MemMapSize = 0;
     UINTN MapKey = 0;
     UINTN DesSize = 0;
     UINT32 DesVersion = 0;
 
     VOID (*entry)() = (VOID (*)()) Address;
 
+    if (MemMap == NULL) {
+        MemMapSize = sizeof(EFI_MEMORY_DESCRIPTOR) * 256;
+        Status = gBS->AllocatePool(EfiLoaderData, MemMapSize, (VOID**)&MemMap);
+        if (EFI_ERROR(Status)) return;
+    }
+
     Status = gBS->GetMemoryMap(&MemMapSize, MemMap, &MapKey, &DesSize, &DesVersion);
     if (Status == EFI_BUFFER_TOO_SMALL) {
+        gBS->FreePool(MemMap);
         MemMapSize += sizeof(EFI_MEMORY_DESCRIPTOR) * 256;
         Status = gBS->AllocatePool(EfiLoaderData, MemMapSize, (VOID**)&MemMap);
         if (EFI_ERROR(Status)) return;
@@ -39,10 +46,9 @@ VOID JumpToAddress(
 }
 
 // Function to check ELF32 header validity
-BOOLEAN CheckElf32Header(Elf32_Ehdr* bl_elf_hdr) {
-    if (!bl_elf_hdr) return FALSE;
-
-    return bl_elf_hdr->e_ident[EI_MAG0] == ELFMAG0 &&
+BOOLEAN CheckElf32Header(const Elf32_Ehdr* bl_elf_hdr) {
+    return bl_elf_hdr &&
+           bl_elf_hdr->e_ident[EI_MAG0] == ELFMAG0 &&
            bl_elf_hdr->e_ident[EI_MAG1] == ELFMAG1 &&
            bl_elf_hdr->e_ident[EI_MAG2] == ELFMAG2 &&
            bl_elf_hdr->e_ident[EI_MAG3] == ELFMAG3 &&
@@ -93,8 +99,6 @@ EFI_STATUS efi_main(
 
         PayloadFileInformationSize = sizeof(EFI_FILE_INFO);
         Status = FileProtocol->GetInfo(PayloadFileProtocol, &gEfiFileInfoGuid, &PayloadFileInformationSize, (VOID**)&PayloadFileInformation);
-        if (EFI_ERROR(Status) && Status != EFI_BUFFER_TOO_SMALL) goto local_cleanup;
-
         if (Status == EFI_BUFFER_TOO_SMALL) {
             Status = gBS->AllocatePool(EfiLoaderData, PayloadFileInformationSize, (VOID**)&PayloadFileInformation);
             if (EFI_ERROR(Status)) goto local_cleanup;
@@ -141,6 +145,7 @@ EFI_STATUS efi_main(
         if (PayloadFileBuffer) gBS->FreePool(PayloadFileBuffer);
         if (PayloadFileInformation) gBS->FreePool(PayloadFileInformation);
         if (PayloadFileProtocol) PayloadFileProtocol->Close(PayloadFileProtocol);
+        if (FileProtocol) FileProtocol->Close(FileProtocol);
     }
 
 exit:
